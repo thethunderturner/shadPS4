@@ -360,6 +360,17 @@ int MemoryManager::MapMemory(void** out_addr, VAddr virtual_addr, size_t size, M
     return ORBIS_OK;
 }
 
+int MemoryManager::MapSystemMemory(void** out_addr, VAddr virtual_addr, size_t size, MemoryProt prot,
+                                   MemoryMapFlags flags, VMAType type, std::string_view name) {
+    // If address is 0, this maps to System Reserved memory instead, which starts at address 0x880000000
+    VAddr in_addr = virtual_addr;
+    if (in_addr == 0) {
+        static constexpr VAddr KernelAllocBase = 0x880000000ULL;
+        in_addr = SearchFree(KernelAllocBase, size, 1);
+    }
+    return MapMemory(out_addr, in_addr, size, prot, flags, type, name);
+}
+
 int MemoryManager::MapFile(void** out_addr, VAddr virtual_addr, size_t size, MemoryProt prot,
                            MemoryMapFlags flags, uintptr_t fd, size_t offset) {
     VAddr mapped_addr = (virtual_addr == 0) ? impl.SystemManagedVirtualBase() : virtual_addr;

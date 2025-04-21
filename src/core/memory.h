@@ -189,6 +189,9 @@ public:
                   MemoryMapFlags flags, VMAType type, std::string_view name = "",
                   bool is_exec = false, PAddr phys_addr = -1, u64 alignment = 0);
 
+    int MapSystemMemory(void** out_addr, VAddr virtual_addr, size_t size, MemoryProt prot,
+                        MemoryMapFlags flags, VMAType type, std::string_view name = "");
+
     int MapFile(void** out_addr, VAddr virtual_addr, size_t size, MemoryProt prot,
                 MemoryMapFlags flags, uintptr_t fd, size_t offset);
 
