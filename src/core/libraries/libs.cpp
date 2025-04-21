@@ -66,6 +66,7 @@ namespace Libraries {
 void InitHLELibs(Core::Loader::SymbolsResolver* sym) {
     LOG_INFO(Lib_Kernel, "Initializing HLE libraries");
     Libraries::Kernel::RegisterKernel(sym);
+    Libraries::GnmDriver::InitializePresenter();
     Libraries::VideoOut::RegisterLib(sym);
     Libraries::UserService::RegisterlibSceUserService(sym);
     Libraries::SystemService::RegisterlibSceSystemService(sym);

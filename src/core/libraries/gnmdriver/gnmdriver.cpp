@@ -2799,7 +2799,7 @@ int PS4_SYSV_ABI Func_F916890425496553() {
     return ORBIS_OK;
 }
 
-void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
+void InitializePresenter() {
     LOG_INFO(Lib_GnmDriver, "Initializing presenter");
     liverpool = std::make_unique<AmdGpu::Liverpool>();
     presenter = std::make_unique<Vulkan::Presenter>(*g_window, liverpool.get());
@@ -2815,7 +2815,9 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
 
     Platform::IrqC::Instance()->Register(Platform::InterruptId::GpuIdle, ResetSubmissionLock,
                                          nullptr);
+}
 
+void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
     LIB_FUNCTION("b0xyllnVY-I", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmAddEqEvent);
     LIB_FUNCTION("b08AgtPlHPg", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmAreSubmitsAllowed);

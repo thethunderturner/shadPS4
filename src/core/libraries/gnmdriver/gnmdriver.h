@@ -14,6 +14,8 @@ namespace Libraries::GnmDriver {
 
 using namespace Kernel;
 
+void InitializePresenter();
+
 s32 PS4_SYSV_ABI sceGnmAddEqEvent(SceKernelEqueue eq, u64 id, void* udata);
 int PS4_SYSV_ABI sceGnmAreSubmitsAllowed();
 int PS4_SYSV_ABI sceGnmBeginWorkload(u32 workload_stream, u64* workload);
