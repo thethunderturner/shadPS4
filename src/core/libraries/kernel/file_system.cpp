@@ -10,6 +10,7 @@
 #include "common/singleton.h"
 #include "core/devices/console_device.h"
 #include "core/devices/deci_tty6_device.h"
+#include "core/devices/gc_device.h"
 #include "core/devices/logger.h"
 #include "core/devices/nop_device.h"
 #include "core/devices/random_device.h"
@@ -52,7 +53,8 @@ static std::map<std::string, FactoryDevice> available_device = {
     {"/dev/random",   &D::RandomDevice::Create },
     {"/dev/srandom",  &D::SRandomDevice::Create },
     {"/dev/console",  &D::ConsoleDevice::Create },
-    {"/dev/deci_tty6",&D::DeciTty6Device::Create }
+    {"/dev/deci_tty6",&D::DeciTty6Device::Create },
+    {"/dev/gc",       &D::GcDevice::Create }
     // clang-format on
 };
 
