@@ -12,7 +12,7 @@ std::shared_ptr<BaseDevice> GcDevice::Create(u32 handle, const char*, int, u16) 
 }
 
 int GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
-    LOG_ERROR(Kernel_Pthread, "(STUBBED) called");
+    LOG_ERROR(Kernel_Pthread, "(STUBBED) cmd = {:#x} called", cmd);
     return 0;
 }
 
