@@ -91,6 +91,15 @@ s32 PS4_SYSV_ABI open(const char* raw_path, s32 flags, u16 mode) {
                 file->type = Core::FileSys::FileType::Device;
                 file->m_guest_name = path;
                 file->device = factory(handle, path.data(), flags, mode);
+
+                // Some libraries map memory to their file. We need a host file to support this.
+                file->m_host_name = mnt->GetHostPath(file->m_guest_name);
+                bool exists = std::filesystem::exists(file->m_host_name);
+                if (!exists) {
+                    Common::FS::IOFile out(file->m_host_name, Common::FS::FileAccessMode::Write);
+                }
+                auto e = file->f.Open(file->m_host_name, Common::FS::FileAccessMode::ReadWrite);
+                ASSERT(e == 0);
                 return handle;
             }
         }

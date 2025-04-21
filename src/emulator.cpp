@@ -245,6 +245,12 @@ void Emulator::Run(const std::filesystem::path& file, const std::vector<std::str
     }
     VideoCore::SetOutputDir(mount_captures_dir, id);
 
+    const auto& devices_dir = Common::FS::GetUserPath(Common::FS::PathType::DevicesDir);
+    if (!std::filesystem::exists(devices_dir)) {
+        std::filesystem::create_directory(devices_dir);
+    }
+    mnt->Mount(devices_dir, "/dev");
+
     // Initialize kernel and library facilities.
     Libraries::InitHLELibs(&linker->GetHLESymbols());
 
