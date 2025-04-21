@@ -28,6 +28,14 @@ public:
     int ftruncate(s64 length) override;
     int getdents(void* buf, u32 nbytes, s64* basep) override;
     s64 pwrite(const void* buf, size_t nbytes, u64 offset) override;
+private:
+    enum class GcCommands : u64 {
+        GetNumTcaUnits = 0xc004811f,
+        SetGsRingSizes = 0xc00c8110,
+        MipStatsReport = 0xc0848119,
+        AreSubmitsAllowed = 0xc008811b,
+        GetCuMask = 0xc010810b,
+    };
 };
 
 } // namespace Core::Devices
