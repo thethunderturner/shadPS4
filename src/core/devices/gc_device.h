@@ -31,10 +31,61 @@ public:
 private:
     enum class GcCommands : u64 {
         GetNumTcaUnits = 0xc004811f,
-        SetGsRingSizes = 0xc00c8110,
-        MipStatsReport = 0xc0848119,
         AreSubmitsAllowed = 0xc008811b,
+        SetGsRingSizes = 0xc00c8110,
+        Submit = 0xc0108102,
         GetCuMask = 0xc010810b,
+        SubmitEop = 0xc020810c,
+        MapComputeQueue = 0xc030810d,
+        SetWaveLimitMultipliers = 0xc030811e,
+        MipStatsReport = 0xc0848119,
+    };
+
+    struct SetGsRingSizesArgs {
+        u32 esgs_ring_size;
+        u32 gsvs_ring_size;
+        u32 unk;
+    };
+
+    struct SubmitArgs {
+        u32 pid;
+        u32 count;
+        u64* cmds;
+    };
+    
+    struct SubmitEopArgs {
+        u32 pid;
+        u32 count;
+        u64* cmds;
+        u64 eop_v;
+        s32 wait;
+    };
+
+    struct MapComputeQueueArgs {
+        u32 pipe_hi;
+        u32 pipe_lo;
+        u32 queue_id;
+        u32 g_queue_id;
+        VAddr ring_base_addr;
+        u32* read_ptr_addr;
+        VAddr ding_dong_ptr;
+        u32 ring_size_dw;
+        u32 pipe_priority;
+    };
+
+    struct SetWaveLimitMultipliersArgs {
+        s32 bitset;
+        s32 values[8];
+        s32 unk0;
+        s32 unk1;
+        s32 unk2;
+    };
+
+    struct SetMipStatsReportArgs {
+        u32 type;
+        u32 unk0;
+        u32 unk1;
+        u32 unk2;
     };
 };
 

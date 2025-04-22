@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "common/logging/log.h"
-#include "gc_device.h"
+#include "core/devices/gc_device.h"
+#include "core/libraries/kernel/posix_error.h"
+#include "core/libraries/gnmdriver/gnmdriver.h"
+#include "core/memory.h"
+#include "common/assert.h"
 
 namespace Core::Devices {
 
@@ -11,27 +15,93 @@ std::shared_ptr<BaseDevice> GcDevice::Create(u32 handle, const char*, int, u16) 
         reinterpret_cast<Devices::BaseDevice*>(new GcDevice(handle)));
 }
 
+
+
+s32* submits_addr = 0;
+
 s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
     auto command = GcCommands(cmd);
     switch(command) {
-    case GcCommands::AreSubmitsAllowed: {
-        LOG_ERROR(Lib_GnmDriver, "unhandled ioctl sceGnmAreSubmitsAllowed", cmd);
-        break;
-    }
-    case GcCommands::GetCuMask: {
-        LOG_ERROR(Lib_GnmDriver, "unhandled ioctl get cu mask", cmd);
-        break;
-    }
     case GcCommands::GetNumTcaUnits: {
-        LOG_ERROR(Lib_GnmDriver, "unhandled ioctl sceGnmGetNumTcaUnits", cmd);
+        auto data = vaArgPtr<s32*>(&args->va_list);
+        *data = 0;
         break;
     }
-    case GcCommands::MipStatsReport: {
-        LOG_ERROR(Lib_GnmDriver, "unhandled ioctl sceGnmMipStatsReport", cmd);
+    case GcCommands::AreSubmitsAllowed: {
+        LOG_INFO(Lib_GnmDriver, "ioctl AreSubmitsAllowed");
+        if (submits_addr == nullptr) {
+            auto* memory = Core::Memory::Instance();
+            s32* out_addr;
+            VAddr in_addr{0xfe0100000};
+            auto prot = Core::MemoryProt::CpuRead;
+            auto flags = Core::MemoryMapFlags::Shared | Core::MemoryMapFlags::Anon | Core::MemoryMapFlags::System;
+            auto type = Core::VMAType::Direct;
+            s32 result = memory->MapMemory(reinterpret_cast<void**>(&out_addr), in_addr, 0x4000, prot, flags, type);
+            if (result != 0) {
+                return POSIX_ENOMEM;
+            }
+            submits_addr = out_addr;
+        }
+        auto data = vaArgPtr<s32*>(&args->va_list);
+        *data = submits_addr;
+
+        *submits_addr = 0;
         break;
     }
     case GcCommands::SetGsRingSizes: {
-        LOG_ERROR(Lib_GnmDriver, "unhandled ioctl sceGnmSetGsRingSizes", cmd);
+        auto data = vaArgPtr<SetGsRingSizesArgs>(&args->va_list);
+        LOG_ERROR(Lib_GnmDriver, "unhandled ioctl SetGsRingSizes, esgs size = {:#x}, gsvs size = {:#x}", data->esgs_ring_size, data->gsvs_ring_size);
+        break;
+    }
+    case GcCommands::Submit: {
+        ASSERT(true);
+        LOG_ERROR(Lib_GnmDriver, "ioctl Submit");
+        auto data = vaArgPtr<SubmitArgs>(&args->va_list);
+        auto commands = std::span{data->cmds, data->count};
+        // Submit ioctl receives an indirect buffer packet
+        break;
+    }
+    case GcCommands::GetCuMask: {
+        auto data = vaArgPtr<s32>(&args->va_list);
+        data[0] = 0x10;
+        data[1] = 0x10;
+        data[2] = 0;
+        data[3] = 0;
+        break;
+    }
+    case GcCommands::SubmitEop: {
+        ASSERT(true);
+        LOG_ERROR(Lib_GnmDriver, "ioctl SubmitEop");
+        auto data = vaArgPtr<SubmitEopArgs>(&args->va_list);
+        auto commands = std::span{data->cmds, data->count};
+        // Submit ioctl receives an indirect buffer packet
+        break;
+    }
+    case GcCommands::MapComputeQueue: {
+        ASSERT(true);
+        auto data = vaArgPtr<MapComputeQueueArgs>(&args->va_list);
+        auto pipe_id = data->pipe_lo - 1;
+        auto ring_size = pow(2, data->ring_size_dw);
+        LOG_ERROR(Lib_GnmDriver, "ioctl MapComputeQueue, pipe_id = {}", pipe_id);
+        Libraries::GnmDriver::sceGnmMapComputeQueueWithPriority(pipe_id, data->queue_id, data->ring_base_addr, ring_size, data->read_ptr_addr, data->pipe_priority);
+        break;
+    }
+    case GcCommands::SetWaveLimitMultipliers: {
+        LOG_ERROR(Lib_GnmDriver, "ioctl SetWaveLimitMultipliers");
+        auto data = vaArgPtr<SetWaveLimitMultipliersArgs>(&args->va_list);
+        break;
+    }
+    case GcCommands::MipStatsReport: {
+        auto data = vaArgPtr<SetMipStatsReportArgs>(&args->va_list);
+        switch(data->type) {
+        case 0x10001:
+        case 0x18001: {
+            break;
+        }
+        default: {
+            return POSIX_EINVAL;
+        }
+        }
         break;
     }
     default: {
