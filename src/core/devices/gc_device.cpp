@@ -88,7 +88,6 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
         ASSERT(true);
         LOG_ERROR(Lib_GnmDriver, "ioctl Submit");
         auto data = vaArgPtr<SubmitArgs>(&args->va_list);
-        auto commands = std::span{data->cmds, data->count};
         // Submit ioctl receives an indirect buffer packet
         break;
     }
@@ -112,7 +111,6 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
         ASSERT(true);
         LOG_ERROR(Lib_GnmDriver, "ioctl SubmitEop");
         auto data = vaArgPtr<SubmitEopArgs>(&args->va_list);
-        auto commands = std::span{data->cmds, data->count};
         // Submit ioctl receives an indirect buffer packet
         break;
     }
