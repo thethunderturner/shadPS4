@@ -30,13 +30,23 @@ public:
     s64 pwrite(const void* buf, size_t nbytes, u64 offset) override;
 private:
     enum class GcCommands : u64 {
+        FlushGarlic = 0xc0048114,
+        SubmitDone = 0xc0048116,
+        WaitIdle = 0xc0048117,
+        WaitFree = 0xc004811d,
         GetNumTcaUnits = 0xc004811f,
-        AreSubmitsAllowed = 0xc008811b,
+        SwitchBuffer = 0xc0088101,
+        DebugHardwareStatus = 0xc0088111,
+        InitializeSubmits = 0xc008811b,
+        UnmapComputeQueue = 0xc00c810e,
         SetGsRingSizes = 0xc00c8110,
         Submit = 0xc0108102,
         GetCuMask = 0xc010810b,
+        DingDong = 0xc010811c,
+        RequiresNeoCompat = 0xc0108120,
         SubmitEop = 0xc020810c,
         MapComputeQueue = 0xc030810d,
+        MapComputeQueueWithPriority = 0xc030811a,
         SetWaveLimitMultipliers = 0xc030811e,
         MipStatsReport = 0xc0848119,
     };

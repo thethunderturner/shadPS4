@@ -22,13 +22,40 @@ s32* submits_addr = 0;
 s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
     auto command = GcCommands(cmd);
     switch(command) {
+    case GcCommands::FlushGarlic: {
+        LOG_ERROR(Lib_GnmDriver, "ioctl FlushGarlic");
+        break;
+    }
+    case GcCommands::SubmitDone: {
+        ASSERT(true);
+        LOG_ERROR(Lib_GnmDriver, "ioctl SubmitDone");
+        break;
+    }
+    case GcCommands::WaitIdle: {
+        ASSERT(true);
+        LOG_ERROR(Lib_GnmDriver, "ioctl WaitIdle");
+        break;
+    }
+    case GcCommands::WaitFree: {
+        ASSERT(true);
+        LOG_ERROR(Lib_GnmDriver, "ioctl WaitFree");
+        break;
+    }
     case GcCommands::GetNumTcaUnits: {
         auto data = vaArgPtr<s32*>(&args->va_list);
         *data = 0;
         break;
     }
-    case GcCommands::AreSubmitsAllowed: {
-        LOG_INFO(Lib_GnmDriver, "ioctl AreSubmitsAllowed");
+    case GcCommands::SwitchBuffer: {
+        ASSERT(true);
+        LOG_ERROR(Lib_GnmDriver, "ioctl SwitchBuffer");
+        break;
+    }
+    case GcCommands::DebugHardwareStatus: {
+        break;
+    }
+    case GcCommands::InitializeSubmits: {
+        LOG_INFO(Lib_GnmDriver, "ioctl InitializeSubmits");
         if (submits_addr == nullptr) {
             auto* memory = Core::Memory::Instance();
             s32* out_addr;
@@ -46,6 +73,10 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
         *data = submits_addr;
 
         *submits_addr = 0;
+        break;
+    }
+    case GcCommands::UnmapComputeQueue: {
+        LOG_ERROR(Lib_GnmDriver, "ioctl UnmapComputeQueue");
         break;
     }
     case GcCommands::SetGsRingSizes: {
@@ -69,6 +100,14 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
         data[3] = 0;
         break;
     }
+    case GcCommands::DingDong: {
+        ASSERT(true);
+        LOG_ERROR(Lib_GnmDriver, "ioctl DingDong");
+        break;
+    }
+    case GcCommands::RequiresNeoCompat: {
+        return POSIX_ENODEV;
+    }
     case GcCommands::SubmitEop: {
         ASSERT(true);
         LOG_ERROR(Lib_GnmDriver, "ioctl SubmitEop");
@@ -82,7 +121,17 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
         auto data = vaArgPtr<MapComputeQueueArgs>(&args->va_list);
         auto pipe_id = data->pipe_lo - 1;
         auto ring_size = pow(2, data->ring_size_dw);
+        data->pipe_priority = 0;
         LOG_ERROR(Lib_GnmDriver, "ioctl MapComputeQueue, pipe_id = {}", pipe_id);
+        Libraries::GnmDriver::sceGnmMapComputeQueue(pipe_id, data->queue_id, data->ring_base_addr, ring_size, data->read_ptr_addr);
+        break;
+    }
+    case GcCommands::MapComputeQueueWithPriority: {
+        ASSERT(true);
+        auto data = vaArgPtr<MapComputeQueueArgs>(&args->va_list);
+        auto pipe_id = data->pipe_lo - 1;
+        auto ring_size = pow(2, data->ring_size_dw);
+        LOG_ERROR(Lib_GnmDriver, "ioctl MapComputeQueueWithPriority, pipe_id = {}", pipe_id);
         Libraries::GnmDriver::sceGnmMapComputeQueueWithPriority(pipe_id, data->queue_id, data->ring_base_addr, ring_size, data->read_ptr_addr, data->pipe_priority);
         break;
     }
