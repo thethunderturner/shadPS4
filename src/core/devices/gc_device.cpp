@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "common/assert.h"
 #include "common/logging/log.h"
 #include "core/devices/gc_device.h"
-#include "core/libraries/kernel/posix_error.h"
 #include "core/libraries/gnmdriver/gnmdriver.h"
+#include "core/libraries/kernel/posix_error.h"
 #include "core/memory.h"
-#include "common/assert.h"
 
 namespace Core::Devices {
 
@@ -15,13 +15,11 @@ std::shared_ptr<BaseDevice> GcDevice::Create(u32 handle, const char*, int, u16) 
         reinterpret_cast<Devices::BaseDevice*>(new GcDevice(handle)));
 }
 
-
-
 s32* submits_addr = 0;
 
 s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
     auto command = GcCommands(cmd);
-    switch(command) {
+    switch (command) {
     case GcCommands::FlushGarlic: {
         LOG_ERROR(Lib_GnmDriver, "ioctl FlushGarlic");
         break;
@@ -61,9 +59,11 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
             s32* out_addr;
             VAddr in_addr{0xfe0100000};
             auto prot = Core::MemoryProt::CpuRead;
-            auto flags = Core::MemoryMapFlags::Shared | Core::MemoryMapFlags::Anon | Core::MemoryMapFlags::System;
+            auto flags = Core::MemoryMapFlags::Shared | Core::MemoryMapFlags::Anon |
+                         Core::MemoryMapFlags::System;
             auto type = Core::VMAType::Direct;
-            s32 result = memory->MapMemory(reinterpret_cast<void**>(&out_addr), in_addr, 0x4000, prot, flags, type);
+            s32 result = memory->MapMemory(reinterpret_cast<void**>(&out_addr), in_addr, 0x4000,
+                                           prot, flags, type);
             if (result != 0) {
                 return POSIX_ENOMEM;
             }
@@ -81,7 +81,9 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
     }
     case GcCommands::SetGsRingSizes: {
         auto data = vaArgPtr<SetGsRingSizesArgs>(&args->va_list);
-        LOG_ERROR(Lib_GnmDriver, "unhandled ioctl SetGsRingSizes, esgs size = {:#x}, gsvs size = {:#x}", data->esgs_ring_size, data->gsvs_ring_size);
+        LOG_ERROR(Lib_GnmDriver,
+                  "unhandled ioctl SetGsRingSizes, esgs size = {:#x}, gsvs size = {:#x}",
+                  data->esgs_ring_size, data->gsvs_ring_size);
         break;
     }
     case GcCommands::Submit: {
@@ -121,7 +123,8 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
         auto ring_size = pow(2, data->ring_size_dw);
         data->pipe_priority = 0;
         LOG_ERROR(Lib_GnmDriver, "ioctl MapComputeQueue, pipe_id = {}", pipe_id);
-        Libraries::GnmDriver::sceGnmMapComputeQueue(pipe_id, data->queue_id, data->ring_base_addr, ring_size, data->read_ptr_addr);
+        Libraries::GnmDriver::sceGnmMapComputeQueue(pipe_id, data->queue_id, data->ring_base_addr,
+                                                    ring_size, data->read_ptr_addr);
         break;
     }
     case GcCommands::MapComputeQueueWithPriority: {
@@ -130,7 +133,9 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
         auto pipe_id = data->pipe_lo - 1;
         auto ring_size = pow(2, data->ring_size_dw);
         LOG_ERROR(Lib_GnmDriver, "ioctl MapComputeQueueWithPriority, pipe_id = {}", pipe_id);
-        Libraries::GnmDriver::sceGnmMapComputeQueueWithPriority(pipe_id, data->queue_id, data->ring_base_addr, ring_size, data->read_ptr_addr, data->pipe_priority);
+        Libraries::GnmDriver::sceGnmMapComputeQueueWithPriority(
+            pipe_id, data->queue_id, data->ring_base_addr, ring_size, data->read_ptr_addr,
+            data->pipe_priority);
         break;
     }
     case GcCommands::SetWaveLimitMultipliers: {
@@ -140,7 +145,7 @@ s32 GcDevice::ioctl(u64 cmd, Common::VaCtx* args) {
     }
     case GcCommands::MipStatsReport: {
         auto data = vaArgPtr<SetMipStatsReportArgs>(&args->va_list);
-        switch(data->type) {
+        switch (data->type) {
         case 0x10001:
         case 0x18001: {
             break;

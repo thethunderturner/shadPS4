@@ -28,6 +28,7 @@ public:
     int ftruncate(s64 length) override;
     int getdents(void* buf, u32 nbytes, s64* basep) override;
     s64 pwrite(const void* buf, size_t nbytes, u64 offset) override;
+
 private:
     enum class GcCommands : u64 {
         FlushGarlic = 0xc0048114,
@@ -62,7 +63,7 @@ private:
         u32 count;
         u64* cmds;
     };
-    
+
     struct SubmitEopArgs {
         u32 pid;
         u32 count;
