@@ -2842,10 +2842,15 @@ void RegisterRequiredGnmDriver(Core::Loader::SymbolsResolver* sym) {
                  sceGnmDingDongForWorkload);
     LIB_FUNCTION("b08AgtPlHPg", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmAreSubmitsAllowed);
+    LIB_FUNCTION("b0xyllnVY-I", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmAddEqEvent);
+    LIB_FUNCTION("UoYY0DWMC0U", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmGetEqEventType);
+    LIB_FUNCTION("H7-fgvEutM0", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmGetEqTimeStamp);
+    LIB_FUNCTION("PVT+fuoS9gU", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmDeleteEqEvent);
 }
 
 void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
-    LIB_FUNCTION("b0xyllnVY-I", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmAddEqEvent);
     LIB_FUNCTION("ihxrbsoSKWc", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmBeginWorkload);
     LIB_FUNCTION("ffrNQOshows", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmComputeWaitOnAddress);
@@ -2873,7 +2878,6 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
                  sceGnmDebuggerWriteSqIndirectRegister);
     LIB_FUNCTION("qpGITzPE+Zc", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmDebugHardwareStatus);
-    LIB_FUNCTION("PVT+fuoS9gU", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmDeleteEqEvent);
     LIB_FUNCTION("UtObDRQiGbs", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmDestroyWorkloadStream);
     LIB_FUNCTION("HHo1BAljZO8", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
@@ -2953,10 +2957,6 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
                  sceGnmGetDbgGcHandle);
     LIB_FUNCTION("pd4C7da6sEg", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmGetDebugTimestamp);
-    LIB_FUNCTION("UoYY0DWMC0U", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmGetEqEventType);
-    LIB_FUNCTION("H7-fgvEutM0", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmGetEqTimeStamp);
     LIB_FUNCTION("oL4hGI1PMpw", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmGetGpuBlockStatus);
     LIB_FUNCTION("Fwvh++m9IQI", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
