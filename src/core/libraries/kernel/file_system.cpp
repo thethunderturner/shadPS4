@@ -10,6 +10,7 @@
 #include "common/singleton.h"
 #include "core/devices/console_device.h"
 #include "core/devices/deci_tty6_device.h"
+#include "core/devices/gc_device.h"
 #include "core/devices/logger.h"
 #include "core/devices/nop_device.h"
 #include "core/devices/random_device.h"
@@ -52,7 +53,8 @@ static std::map<std::string, FactoryDevice> available_device = {
     {"/dev/random",   &D::RandomDevice::Create },
     {"/dev/srandom",  &D::SRandomDevice::Create },
     {"/dev/console",  &D::ConsoleDevice::Create },
-    {"/dev/deci_tty6",&D::DeciTty6Device::Create }
+    {"/dev/deci_tty6",&D::DeciTty6Device::Create },
+    {"/dev/gc",       &D::GcDevice::Create }
     // clang-format on
 };
 
@@ -89,6 +91,15 @@ s32 PS4_SYSV_ABI open(const char* raw_path, s32 flags, u16 mode) {
                 file->type = Core::FileSys::FileType::Device;
                 file->m_guest_name = path;
                 file->device = factory(handle, path.data(), flags, mode);
+
+                // Some libraries map memory to their file. We need a host file to support this.
+                file->m_host_name = mnt->GetHostPath(file->m_guest_name);
+                bool exists = std::filesystem::exists(file->m_host_name);
+                if (!exists) {
+                    Common::FS::IOFile out(file->m_host_name, Common::FS::FileAccessMode::Write);
+                }
+                auto e = file->f.Open(file->m_host_name, Common::FS::FileAccessMode::ReadWrite);
+                ASSERT(e == 0);
                 return handle;
             }
         }

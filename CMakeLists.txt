@@ -701,6 +701,8 @@ set(CORE src/core/aerolib/stubs.cpp
          src/core/address_space.h
          src/core/devices/base_device.cpp
          src/core/devices/base_device.h
+         src/core/devices/gc_device.cpp
+         src/core/devices/gc_device.h
          src/core/devices/ioccom.h
          src/core/devices/logger.cpp
          src/core/devices/logger.h

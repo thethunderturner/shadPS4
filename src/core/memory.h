@@ -41,8 +41,10 @@ enum class MemoryMapFlags : u32 {
     Shared = 1,
     Private = 2,
     Fixed = 0x10,
-    NoOverwrite = 0x0080,
+    NoOverwrite = 0x80,
     NoSync = 0x800,
+    Anon = 0x1000,
+    System = 0x2000,
     NoCore = 0x20000,
     NoCoalesce = 0x400000,
 };
@@ -188,6 +190,9 @@ public:
     int MapMemory(void** out_addr, VAddr virtual_addr, size_t size, MemoryProt prot,
                   MemoryMapFlags flags, VMAType type, std::string_view name = "",
                   bool is_exec = false, PAddr phys_addr = -1, u64 alignment = 0);
+
+    int MapSystemMemory(void** out_addr, VAddr virtual_addr, size_t size, MemoryProt prot,
+                        MemoryMapFlags flags, VMAType type, std::string_view name = "");
 
     int MapFile(void** out_addr, VAddr virtual_addr, size_t size, MemoryProt prot,
                 MemoryMapFlags flags, uintptr_t fd, size_t offset);

@@ -129,6 +129,9 @@ s32 PS4_SYSV_ABI sceKernelMemoryPoolReserve(void* addrIn, size_t len, size_t ali
 s32 PS4_SYSV_ABI sceKernelMemoryPoolCommit(void* addr, size_t len, int type, int prot, int flags);
 s32 PS4_SYSV_ABI sceKernelMemoryPoolDecommit(void* addr, size_t len, int flags);
 
+int PS4_SYSV_ABI sceKernelMmap(void* addr, u64 len, int prot, int flags, int fd, size_t offset,
+                               void** res);
+
 int PS4_SYSV_ABI sceKernelMunmap(void* addr, size_t len);
 
 void RegisterMemory(Core::Loader::SymbolsResolver* sym);

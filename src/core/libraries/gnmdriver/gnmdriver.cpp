@@ -2799,7 +2799,7 @@ int PS4_SYSV_ABI Func_F916890425496553() {
     return ORBIS_OK;
 }
 
-void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
+void InitializePresenter() {
     LOG_INFO(Lib_GnmDriver, "Initializing presenter");
     liverpool = std::make_unique<AmdGpu::Liverpool>();
     presenter = std::make_unique<Vulkan::Presenter>(*g_window, liverpool.get());
@@ -2815,10 +2815,42 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
 
     Platform::IrqC::Instance()->Register(Platform::InterruptId::GpuIdle, ResetSubmissionLock,
                                          nullptr);
+}
 
-    LIB_FUNCTION("b0xyllnVY-I", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmAddEqEvent);
+void RegisterRequiredGnmDriver(Core::Loader::SymbolsResolver* sym) {
+    LIB_FUNCTION("29oKvKXzEZo", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmMapComputeQueue);
+    LIB_FUNCTION("A+uGq+3KFtQ", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmMapComputeQueueWithPriority);
+    LIB_FUNCTION("gObODli-OH8", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmRequestFlipAndSubmitDone);
+    LIB_FUNCTION("6YRHhh5mHCs", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmRequestFlipAndSubmitDoneForWorkload);
+    LIB_FUNCTION("xbxNatawohc", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmSubmitAndFlipCommandBuffers);
+    LIB_FUNCTION("Ga6r7H6Y0RI", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmSubmitAndFlipCommandBuffersForWorkload);
+    LIB_FUNCTION("zwY0YV91TTI", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmSubmitCommandBuffers);
+    LIB_FUNCTION("jRcI8VcgTz4", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmSubmitCommandBuffersForWorkload);
+    LIB_FUNCTION("yvZ73uQUqrk", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmSubmitDone);
+    LIB_FUNCTION("ArSg-TGinhk", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmUnmapComputeQueue);
+    LIB_FUNCTION("bX5IbRvECXk", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmDingDong);
+    LIB_FUNCTION("byXlqupd8cE", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmDingDongForWorkload);
     LIB_FUNCTION("b08AgtPlHPg", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmAreSubmitsAllowed);
+    LIB_FUNCTION("b0xyllnVY-I", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmAddEqEvent);
+    LIB_FUNCTION("UoYY0DWMC0U", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmGetEqEventType);
+    LIB_FUNCTION("H7-fgvEutM0", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
+                 sceGnmGetEqTimeStamp);
+    LIB_FUNCTION("PVT+fuoS9gU", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmDeleteEqEvent);
+}
+
+void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
     LIB_FUNCTION("ihxrbsoSKWc", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmBeginWorkload);
     LIB_FUNCTION("ffrNQOshows", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmComputeWaitOnAddress);
@@ -2846,12 +2878,8 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
                  sceGnmDebuggerWriteSqIndirectRegister);
     LIB_FUNCTION("qpGITzPE+Zc", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmDebugHardwareStatus);
-    LIB_FUNCTION("PVT+fuoS9gU", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmDeleteEqEvent);
     LIB_FUNCTION("UtObDRQiGbs", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmDestroyWorkloadStream);
-    LIB_FUNCTION("bX5IbRvECXk", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmDingDong);
-    LIB_FUNCTION("byXlqupd8cE", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmDingDongForWorkload);
     LIB_FUNCTION("HHo1BAljZO8", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmDisableMipStatsReport);
     LIB_FUNCTION("0BzLGljcwBo", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
@@ -2929,10 +2957,6 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
                  sceGnmGetDbgGcHandle);
     LIB_FUNCTION("pd4C7da6sEg", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmGetDebugTimestamp);
-    LIB_FUNCTION("UoYY0DWMC0U", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmGetEqEventType);
-    LIB_FUNCTION("H7-fgvEutM0", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmGetEqTimeStamp);
     LIB_FUNCTION("oL4hGI1PMpw", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmGetGpuBlockStatus);
     LIB_FUNCTION("Fwvh++m9IQI", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
@@ -2996,10 +3020,6 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
                  sceGnmLogicalCuMaskToPhysicalCuMask);
     LIB_FUNCTION("Kl0Z3LH07QI", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmLogicalTcaUnitToPhysical);
-    LIB_FUNCTION("29oKvKXzEZo", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmMapComputeQueue);
-    LIB_FUNCTION("A+uGq+3KFtQ", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmMapComputeQueueWithPriority);
     LIB_FUNCTION("+N+wrSYBLIw", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmPaDisableFlipCallbacks);
     LIB_FUNCTION("8WDA9RiXLaw", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
@@ -3016,10 +3036,6 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
     LIB_FUNCTION("ZFqKFl23aMc", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmRegisterOwner);
     LIB_FUNCTION("nvEwfYAImTs", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmRegisterResource);
-    LIB_FUNCTION("gObODli-OH8", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmRequestFlipAndSubmitDone);
-    LIB_FUNCTION("6YRHhh5mHCs", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmRequestFlipAndSubmitDoneForWorkload);
     LIB_FUNCTION("f85orjx7qts", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmRequestMipStatsReportAndReset);
     LIB_FUNCTION("MYRtYhojKdA", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
@@ -3129,17 +3145,6 @@ void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym) {
                  sceGnmSqttSwitchTraceBuffer2);
     LIB_FUNCTION("QLzOwOF0t+A", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmSqttWaitForEvent);
-    LIB_FUNCTION("xbxNatawohc", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmSubmitAndFlipCommandBuffers);
-    LIB_FUNCTION("Ga6r7H6Y0RI", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmSubmitAndFlipCommandBuffersForWorkload);
-    LIB_FUNCTION("zwY0YV91TTI", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmSubmitCommandBuffers);
-    LIB_FUNCTION("jRcI8VcgTz4", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmSubmitCommandBuffersForWorkload);
-    LIB_FUNCTION("yvZ73uQUqrk", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1, sceGnmSubmitDone);
-    LIB_FUNCTION("ArSg-TGinhk", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
-                 sceGnmUnmapComputeQueue);
     LIB_FUNCTION("yhFCnaz5daw", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,
                  sceGnmUnregisterAllResourcesForOwner);
     LIB_FUNCTION("fhKwCVVj9nk", "libSceGnmDriver", 1, "libSceGnmDriver", 1, 1,

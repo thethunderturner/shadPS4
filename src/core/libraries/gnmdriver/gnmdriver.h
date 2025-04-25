@@ -14,6 +14,8 @@ namespace Libraries::GnmDriver {
 
 using namespace Kernel;
 
+void InitializePresenter();
+
 s32 PS4_SYSV_ABI sceGnmAddEqEvent(SceKernelEqueue eq, u64 id, void* udata);
 int PS4_SYSV_ABI sceGnmAreSubmitsAllowed();
 int PS4_SYSV_ABI sceGnmBeginWorkload(u32 workload_stream, u64* workload);
@@ -295,5 +297,6 @@ int PS4_SYSV_ABI Func_BFB41C057478F0BF();
 int PS4_SYSV_ABI Func_E51D44DB8151238C();
 int PS4_SYSV_ABI Func_F916890425496553();
 
+void RegisterRequiredGnmDriver(Core::Loader::SymbolsResolver* sym);
 void RegisterlibSceGnmDriver(Core::Loader::SymbolsResolver* sym);
 } // namespace Libraries::GnmDriver
