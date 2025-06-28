@@ -748,6 +748,10 @@
       <source>Last updated</source>
       <translation>آخرین به‌روزرسانی</translation>
     </message>
+    <message>
+      <source>Favorite</source>
+      <translation type="unfinished">Favorite</translation>
+    </message>
   </context>
   <context>
     <name>GameListUtils</name>
@@ -950,6 +954,14 @@
       <source>SFO Viewer for </source>
       <translation>SFO مشاهده </translation>
     </message>
+    <message>
+      <source>Remove from Favorites</source>
+      <translation type="unfinished">Remove from Favorites</translation>
+    </message>
+    <message>
+      <source>Add to Favorites</source>
+      <translation type="unfinished">Add to Favorites</translation>
+    </message>
   </context>
   <context>
     <name>HelpDialog</name>
@@ -1057,10 +1069,6 @@
       <translation type="unfinished">L3</translation>
     </message>
     <message>
-      <source>Touchpad Click</source>
-      <translation>کلیک روی تاچ‌پد</translation>
-    </message>
-    <message>
       <source>Mouse to Joystick</source>
       <translation type="unfinished">Mouse to Joystick</translation>
     </message>
@@ -1153,10 +1161,6 @@
       <translation type="unfinished">Unable to Save</translation>
     </message>
     <message>
-      <source>Cannot bind any unique input more than once</source>
-      <translation type="unfinished">Cannot bind any unique input more than once</translation>
-    </message>
-    <message>
       <source>Press a key</source>
       <translation type="unfinished">Press a key</translation>
     </message>
@@ -1183,6 +1187,26 @@
     <message>
       <source>Cancel</source>
       <translation type="unfinished">Cancel</translation>
+    </message>
+    <message>
+      <source>Cannot bind any unique input more than once. Duplicate inputs mapped to the following buttons:
+
+%1</source>
+      <translation type="unfinished">Cannot bind any unique input more than once. Duplicate inputs mapped to the following buttons:
+
+%1</translation>
+    </message>
+    <message>
+      <source>Touchpad Left</source>
+      <translation type="unfinished">Touchpad Left</translation>
+    </message>
+    <message>
+      <source>Touchpad Center</source>
+      <translation type="unfinished">Touchpad Center</translation>
+    </message>
+    <message>
+      <source>Touchpad Right</source>
+      <translation type="unfinished">Touchpad Right</translation>
     </message>
   </context>
   <context>
@@ -1543,10 +1567,6 @@
       <translation>دسته بازی</translation>
     </message>
     <message>
-      <source>Back Button Behavior</source>
-      <translation>رفتار دکمه بازگشت</translation>
-    </message>
-    <message>
       <source>Graphics</source>
       <translation>گرافیک</translation>
     </message>
@@ -1783,10 +1803,6 @@
       <translation>زمانی را برای ناپدید شدن ماوس بعد از غیرفعالی تعیین کنید.</translation>
     </message>
     <message>
-      <source>Back Button Behavior:\nSets the controller&apos;s back button to emulate tapping the specified position on the PS4 touchpad.</source>
-      <translation>رفتار دکمه برگشت:\nدکمه برگشت کنترلر را طوری تنظیم می کند که ضربه زدن روی موقعیت مشخص شده روی صفحه لمسی PS4 را شبیه سازی کند.</translation>
-    </message>
-    <message>
       <source>Display Compatibility Data:\nDisplays game compatibility information in table view. Enable &quot;Update Compatibility On Startup&quot; to get up-to-date information.</source>
       <translation>نمایش داده‌های سازگاری:\nاطلاعات سازگاری بازی را به صورت جدول نمایش می‌دهد. برای دریافت اطلاعات به‌روز، گزینه &quot;به‌روزرسانی سازگاری هنگام راه‌اندازی&quot; را فعال کنید.</translation>
     </message>
@@ -1809,22 +1825,6 @@
     <message>
       <source>Always</source>
       <translation>همیشه</translation>
-    </message>
-    <message>
-      <source>Touchpad Left</source>
-      <translation>صفحه لمسی سمت چپ</translation>
-    </message>
-    <message>
-      <source>Touchpad Right</source>
-      <translation>صفحه لمسی سمت راست</translation>
-    </message>
-    <message>
-      <source>Touchpad Center</source>
-      <translation>مرکز صفحه لمسی</translation>
-    </message>
-    <message>
-      <source>None</source>
-      <translation>هیچ کدام</translation>
     </message>
     <message>
       <source>Graphics Device:\nOn multiple GPU systems, select the GPU the emulator will use from the drop down list,\nor select &quot;Auto Select&quot; to automatically determine it.</source>
