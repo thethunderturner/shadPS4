@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cstdlib>
+
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "core/libraries/error_codes.h"
@@ -60,6 +62,22 @@ const char* PS4_SYSV_ABI internal_strchr(const char* str, int c) {
     return std::strchr(str, c);
 }
 
+const char* PS4_SYSV_ABI internal_strstr(const char* haystack, const char* needle) {
+    return std::strstr(haystack, needle);
+}
+
+char* PS4_SYSV_ABI internal_strncat(char* dest, const char* src, size_t count) {
+    return std::strncat(dest, src, count);
+}
+
+u64 PS4_SYSV_ABI internal_Stoul(const char* str, char** endptr, int base) {
+    return std::strtoul(str, endptr, base);
+}
+
+s64 PS4_SYSV_ABI internal_Stoll(const char* str, char** endptr, int base) {
+    return std::strtoll(str, endptr, base);
+}
+
 void RegisterlibSceLibcInternalStr(Core::Loader::SymbolsResolver* sym) {
     LIB_FUNCTION("5Xa2ACNECdo", "libSceLibcInternal", 1, "libSceLibcInternal", internal_strcpy_s);
     LIB_FUNCTION("K+gcnFFJKVc", "libSceLibcInternal", 1, "libSceLibcInternal", internal_strcat_s);
@@ -70,6 +88,10 @@ void RegisterlibSceLibcInternalStr(Core::Loader::SymbolsResolver* sym) {
     LIB_FUNCTION("YNzNkJzYqEg", "libSceLibcInternal", 1, "libSceLibcInternal", internal_strncpy_s);
     LIB_FUNCTION("Ls4tzzhimqQ", "libSceLibcInternal", 1, "libSceLibcInternal", internal_strcat);
     LIB_FUNCTION("ob5xAW4ln-0", "libSceLibcInternal", 1, "libSceLibcInternal", internal_strchr);
+    LIB_FUNCTION("viiwFMaNamA", "libSceLibcInternal", 1, "libSceLibcInternal", internal_strstr);
+    LIB_FUNCTION("kHg45qPC6f0", "libSceLibcInternal", 1, "libSceLibcInternal", internal_strncat);
+    LIB_FUNCTION("zlfEH8FmyUA", "libSceLibcInternal", 1, "libSceLibcInternal", internal_Stoul);
+    LIB_FUNCTION("7pNKcscKrf8", "libSceLibcInternal", 1, "libSceLibcInternal", internal_Stoll);
 }
 
 } // namespace Libraries::LibcInternal
