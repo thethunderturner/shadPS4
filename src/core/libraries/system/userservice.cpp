@@ -10,6 +10,7 @@
 #include "common/singleton.h"
 #include "core/emulator_settings.h"
 #include "core/libraries/libs.h"
+#include "core/libraries/np/np_handler.h"
 #include "core/libraries/system/userservice.h"
 #include "core/libraries/system/userservice_error.h"
 #include "core/tls.h"
@@ -1106,6 +1107,14 @@ s32 PS4_SYSV_ABI sceUserServiceGetUserName(int user_id, char* user_name, std::si
         name = u->user_name;
     } else {
         LOG_ERROR(Lib_UserService, "No user found");
+    }
+    // Display PSN profile if user is signed in
+    auto& np_handler = Libraries::Np::NpHandler::GetInstance();
+    if (np_handler.IsPsnSignedIn(user_id)) {
+        const auto& online_id = np_handler.GetOnlineId(user_id);
+        if (online_id.data[0] != '\0') {
+            name.assign(online_id.data, strnlen(online_id.data, sizeof(online_id.data)));
+        }
     }
     if (size < name.length()) {
         LOG_ERROR(Lib_UserService, "buffer is too short");
