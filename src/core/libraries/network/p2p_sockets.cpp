@@ -9,80 +9,77 @@
 
 namespace Libraries::Net {
 
-int P2PSocket::Close() {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
-}
-
-int P2PSocket::SetSocketOptions(int level, int optname, const void* optval, u32 optlen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
-}
-
-int P2PSocket::GetSocketOptions(int level, int optname, void* optval, u32* optlen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
+// Folds the P2P virtual port into the real port when sin_port is left empty,
+// so peers stay addressable through a plain UDP/TCP host socket.
+static OrbisNetSockaddrIn FoldVport(const OrbisNetSockaddr* addr) {
+    OrbisNetSockaddrIn real = *reinterpret_cast<const OrbisNetSockaddrIn*>(addr);
+    if (real.sin_port == 0) {
+        real.sin_port = real.sin_vport;
+    }
+    return real;
 }
 
 int P2PSocket::Bind(const OrbisNetSockaddr* addr, u32 addrlen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
+    if (addr == nullptr) {
+        *Libraries::Kernel::__Error() = ORBIS_NET_EINVAL;
+        return -1;
+    }
+    const OrbisNetSockaddrIn real = FoldVport(addr);
+    vport = reinterpret_cast<const OrbisNetSockaddrIn*>(addr)->sin_vport;
+    LOG_INFO(Lib_Net, "binding P2P socket, port = {}, vport = {}", ntohs(real.sin_port),
+             ntohs(vport));
+    return PosixSocket::Bind(reinterpret_cast<const OrbisNetSockaddr*>(&real), addrlen);
 }
 
-int P2PSocket::Listen(int backlog) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
-}
-
-int P2PSocket::SendMessage(const OrbisNetMsghdr* msg, int flags) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    *Libraries::Kernel::__Error() = ORBIS_NET_EAGAIN;
-    return -1;
+int P2PSocket::Connect(const OrbisNetSockaddr* addr, u32 namelen) {
+    if (addr == nullptr) {
+        *Libraries::Kernel::__Error() = ORBIS_NET_EINVAL;
+        return -1;
+    }
+    const OrbisNetSockaddrIn real = FoldVport(addr);
+    return PosixSocket::Connect(reinterpret_cast<const OrbisNetSockaddr*>(&real), namelen);
 }
 
 int P2PSocket::SendPacket(const void* msg, u32 len, int flags, const OrbisNetSockaddr* to,
                           u32 tolen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    *Libraries::Kernel::__Error() = ORBIS_NET_EAGAIN;
-    return -1;
-}
-
-int P2PSocket::ReceiveMessage(OrbisNetMsghdr* msg, int flags) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    *Libraries::Kernel::__Error() = ORBIS_NET_EAGAIN;
-    return -1;
-}
-
-int P2PSocket::ReceivePacket(void* buf, u32 len, int flags, OrbisNetSockaddr* from, u32* fromlen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    *Libraries::Kernel::__Error() = ORBIS_NET_EAGAIN;
-    return -1;
-}
-
-SocketPtr P2PSocket::Accept(OrbisNetSockaddr* addr, u32* addrlen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    *Libraries::Kernel::__Error() = ORBIS_NET_EAGAIN;
-    return nullptr;
-}
-
-int P2PSocket::Connect(const OrbisNetSockaddr* addr, u32 namelen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
+    if (to == nullptr) {
+        return PosixSocket::SendPacket(msg, len, flags, to, tolen);
+    }
+    const OrbisNetSockaddrIn real = FoldVport(to);
+    return PosixSocket::SendPacket(msg, len, flags,
+                                   reinterpret_cast<const OrbisNetSockaddr*>(&real), tolen);
 }
 
 int P2PSocket::GetSocketAddress(OrbisNetSockaddr* name, u32* namelen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
+    const int ret = PosixSocket::GetSocketAddress(name, namelen);
+    if (ret >= 0 && name != nullptr) {
+        reinterpret_cast<OrbisNetSockaddrIn*>(name)->sin_vport = vport;
+    }
+    return ret;
 }
 
-int P2PSocket::GetPeerName(OrbisNetSockaddr* addr, u32* namelen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
+int P2PSocket::SetSocketOptions(int level, int optname, const void* optval, u32 optlen) {
+    const int ret = PosixSocket::SetSocketOptions(level, optname, optval, optlen);
+    if (ret < 0) {
+        // P2P-specific options (crypto, signatures, ...) have no host equivalent.
+        LOG_WARNING(Lib_Net, "ignoring unsupported option, level = {:#x}, optname = {:#x}", level,
+                    optname);
+        return 0;
+    }
+    return ret;
 }
 
-int P2PSocket::fstat(Libraries::Kernel::OrbisKernelStat* stat) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
-    return 0;
+int P2PSocket::GetSocketOptions(int level, int optname, void* optval, u32* optlen) {
+    const int ret = PosixSocket::GetSocketOptions(level, optname, optval, optlen);
+    if (ret < 0) {
+        LOG_WARNING(Lib_Net, "ignoring unsupported option, level = {:#x}, optname = {:#x}", level,
+                    optname);
+        if (optval != nullptr && optlen != nullptr) {
+            std::memset(optval, 0, *optlen);
+        }
+        return 0;
+    }
+    return ret;
 }
 
 } // namespace Libraries::Net

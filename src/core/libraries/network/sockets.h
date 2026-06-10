@@ -125,29 +125,21 @@ struct PosixSocket : public Socket {
     }
 };
 
-struct P2PSocket : public Socket {
-    explicit P2PSocket(int domain, int type, int protocol) : Socket(domain, type, protocol) {}
-    bool IsValid() const override {
-        return true;
+
+struct P2PSocket : public PosixSocket {
+    u16 vport = 0;
+    explicit P2PSocket(int domain, int type, int protocol)
+        : PosixSocket(domain, type == ORBIS_NET_SOCK_STREAM_P2P ? SOCK_STREAM : SOCK_DGRAM,
+                      protocol) {
+        socket_type = type;
     }
-    int Close() override;
     int SetSocketOptions(int level, int optname, const void* optval, u32 optlen) override;
     int GetSocketOptions(int level, int optname, void* optval, u32* optlen) override;
     int Bind(const OrbisNetSockaddr* addr, u32 addrlen) override;
-    int Listen(int backlog) override;
-    int SendMessage(const OrbisNetMsghdr* msg, int flags) override;
     int SendPacket(const void* msg, u32 len, int flags, const OrbisNetSockaddr* to,
                    u32 tolen) override;
-    int ReceiveMessage(OrbisNetMsghdr* msg, int flags) override;
-    int ReceivePacket(void* buf, u32 len, int flags, OrbisNetSockaddr* from, u32* fromlen) override;
-    SocketPtr Accept(OrbisNetSockaddr* addr, u32* addrlen) override;
     int Connect(const OrbisNetSockaddr* addr, u32 namelen) override;
     int GetSocketAddress(OrbisNetSockaddr* name, u32* namelen) override;
-    int GetPeerName(OrbisNetSockaddr* addr, u32* namelen) override;
-    int fstat(Libraries::Kernel::OrbisKernelStat* stat) override;
-    std::optional<net_socket> Native() override {
-        return {};
-    }
 };
 
 struct UnixSocket : public Socket {
