@@ -72,6 +72,11 @@ public:
     u32 GetNumFriends(s32 user_id) const;
     std::optional<std::string> GetFriendNpid(s32 user_id, u32 index) const;
 
+    // Submit a NpMatching2 room/signaling request (already framed payload) to the shadNet
+    // server. Returns the submit packet id, or 0 if the user has no connected client.
+    u64 SubmitMatchingRequest(s32 user_id, ShadNet::CommandType cmd,
+                              const std::vector<u8>& payload);
+
     // Submit a RecordScore request to the shadNet server.
     s32 RecordScore(s32 user_id, s32 service_label, u32 boardId, s32 pcId, s64 score,
                     const char* comment, size_t commentLen, const u8* gameInfoData,

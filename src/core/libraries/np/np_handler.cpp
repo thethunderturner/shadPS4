@@ -8,6 +8,7 @@
 #include "core/emulator_settings.h"
 #include "core/libraries/np/np_error.h"
 #include "core/libraries/np/np_manager.h"
+#include "core/libraries/np/np_matching2.h"
 #include "core/libraries/np/np_score/np_score.h"
 #include "core/user_settings.h"
 #include "np_handler.h"
@@ -127,7 +128,15 @@ bool NpHandler::ConnectUser(s32 user_id, const std::string& host, u16 port, cons
     };
     client->onAsyncReply = [this, user_id](ShadNet::CommandType cmd, u64 pkt_id,
                                            ShadNet::ErrorType err, const std::vector<u8>& body) {
-        OnScoreReply(user_id, cmd, pkt_id, err, body);
+        // Room/matching commands (RegisterHandlers..KickoutRoomMember) route to NpMatching2;
+        // everything else is a score reply.
+        const u16 c = static_cast<u16>(cmd);
+        if (c >= static_cast<u16>(ShadNet::CommandType::RegisterHandlers) &&
+            c <= static_cast<u16>(ShadNet::CommandType::KickoutRoomMember)) {
+            NpMatching2::HandleRoomReply(c, pkt_id, static_cast<u8>(err), body);
+        } else {
+            OnScoreReply(user_id, cmd, pkt_id, err, body);
+        }
     };
 
     client->Start(host, port, npid, password, token);
@@ -342,6 +351,21 @@ std::string NpHandler::GetNpCommId(s32 service_label) const {
         com_id.resize(COM_ID_LEN);
     }
     return com_id;
+}
+
+u64 NpHandler::SubmitMatchingRequest(s32 user_id, ShadNet::CommandType cmd,
+                                     const std::vector<u8>& payload) {
+    std::shared_ptr<ShadNet::ShadNetClient> client;
+    {
+        std::lock_guard lock(m_mutex_clients);
+        auto it = m_clients.find(user_id);
+        if (it == m_clients.end() || !it->second) {
+            LOG_WARNING(NpHandler, "SubmitMatchingRequest: user_id={} not connected", user_id);
+            return 0;
+        }
+        client = it->second;
+    }
+    return client->SubmitRequest(cmd, payload);
 }
 
 s32 NpHandler::RecordScore(s32 user_id, s32 service_label, u32 boardId, s32 pcId, s64 score,

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <vector>
 #include "common/types.h"
 
 namespace Core::Loader {
@@ -43,6 +44,11 @@ constexpr OrbisNpMatching2Event ORBIS_NP_MATCHING2_CONTEXT_EVENT_STARTED = 0x6F0
 
 constexpr OrbisNpMatching2EventCause ORBIS_NP_MATCHING2_EVENT_CAUSE_CONTEXT_ERROR = 10;
 constexpr OrbisNpMatching2EventCause ORBIS_NP_MATCHING2_EVENT_CAUSE_CONTEXT_ACTION = 11;
+
+// Called by NpHandler when a room-command reply arrives from the shadNet server.
+// cmd/error are the raw ShadNet::CommandType/ErrorType values; body is the reply
+// payload after the error byte.
+void HandleRoomReply(u16 cmd, u64 pkt_id, u8 error, const std::vector<u8>& body);
 
 void RegisterLib(Core::Loader::SymbolsResolver* sym);
 } // namespace Libraries::Np::NpMatching2
