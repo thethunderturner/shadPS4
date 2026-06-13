@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2026 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
+#include <cstring>
 #include <deque>
 #include <map>
 #include <mutex>
@@ -270,6 +272,79 @@ struct OrbisNpMatching2CreateJoinRoomResponseA {
     OrbisNpMatching2RoomMemberDataInternalListA members;
 };
 
+// JoinRoom shares the response shape with CreateJoinRoom.
+using OrbisNpMatching2JoinRoomResponseA = OrbisNpMatching2CreateJoinRoomResponseA;
+
+struct OrbisNpMatching2PresenceOptionData {
+    u8 data[16];
+    u64 len;
+};
+
+// Room info retrievable outside the room (search/list results). Layout mirrors the SDK's
+// SceNpMatching2RoomDataExternalA exactly so the toolkit reads each field at the right offset.
+struct OrbisNpMatching2RoomDataExternalA {
+    OrbisNpMatching2RoomDataExternalA* next;
+    u16 maxSlot;
+    u16 curMemberNum;
+    OrbisNpMatching2Flags flagAttr;
+    OrbisNpMatching2ServerId serverId;
+    u8 padding[2];
+    OrbisNpMatching2WorldId worldId;
+    OrbisNpMatching2LobbyId lobbyId;
+    OrbisNpMatching2RoomId roomId;
+    u64 passwordSlotMask;
+    u64 joinedSlotMask;
+    u16 publicSlotNum;
+    u16 privateSlotNum;
+    u16 openPublicSlotNum;
+    u16 openPrivateSlotNum;
+    Libraries::Np::OrbisNpPeerAddressA owner;
+    Libraries::Np::OrbisNpOnlineId ownerOnlineId;
+    void* roomGroup;
+    u64 roomGroupNum;
+    void* roomSearchableIntAttrExternal;
+    u64 roomSearchableIntAttrExternalNum;
+    void* roomSearchableBinAttrExternal;
+    u64 roomSearchableBinAttrExternalNum;
+    void* roomBinAttrExternal;
+    u64 roomBinAttrExternalNum;
+};
+static_assert(sizeof(OrbisNpMatching2RoomDataExternalA) == 168);
+
+struct OrbisNpMatching2Range {
+    u32 start;
+    u32 total;
+    u32 results;
+    u8 pad[4];
+};
+
+struct OrbisNpMatching2SearchRoomResponseA {
+    OrbisNpMatching2Range range;
+    OrbisNpMatching2RoomDataExternalA* roomDataExternal;
+};
+
+struct OrbisNpMatching2JoinRoomRequestA {
+    OrbisNpMatching2RoomId roomId;
+    void* roomPassword;
+    void* joinRoomGroupLabel;
+    void* roomMemberBinAttrInternal;
+    u64 roomMemberBinAttrInternalNum;
+    OrbisNpMatching2PresenceOptionData optData;
+    OrbisNpMatching2TeamId teamId;
+    u8 padding[3];
+    OrbisNpMatching2Flags flagAttr;
+    Libraries::Np::OrbisNpAccountId* blockedUser;
+    u64 blockedUserNum;
+};
+
+// Fill an OrbisNpOnlineId from an npid handle string (truncated to the 16-byte field).
+static Libraries::Np::OrbisNpOnlineId MakeOnlineId(const std::string& handle) {
+    Libraries::Np::OrbisNpOnlineId id{};
+    const size_t n = std::min<size_t>(handle.size(), ORBIS_NP_ONLINEID_MAX_LENGTH - 1);
+    std::memcpy(id.data, handle.data(), n);
+    return id;
+}
+
 int PS4_SYSV_ABI sceNpMatching2CreateJoinRoomA(OrbisNpMatching2ContextId ctxId,
                                                OrbisNpMatching2CreateJoinRoomRequestA* request,
                                                OrbisNpMatching2RequestOptParam* requestOpt,
@@ -443,6 +518,102 @@ int PS4_SYSV_ABI sceNpMatching2ContextStart(OrbisNpMatching2ContextId ctxId, u64
     return ORBIS_OK;
 }
 
+// Extract the [u32-LE size][proto] framing common to all room replies.
+static bool ExtractReplyProto(const std::vector<u8>& body, const u8** out, u32* out_sz) {
+    if (body.size() < 4) {
+        return false;
+    }
+    const u32 sz = u32(body[0]) | (u32(body[1]) << 8) | (u32(body[2]) << 16) | (u32(body[3]) << 24);
+    if (body.size() < 4 + static_cast<size_t>(sz)) {
+        return false;
+    }
+    *out = body.data() + 4;
+    *out_sz = sz;
+    return true;
+}
+
+// Build a RoomDataInternal from a server-side MatchingRoomDataInternal.
+static OrbisNpMatching2RoomDataInternal BuildRoomDataInternal(
+    const shadnet::MatchingRoomDataInternal& rd) {
+    OrbisNpMatching2RoomDataInternal room{};
+    room.publicSlots = static_cast<u16>(rd.public_slots());
+    room.privateSlots = static_cast<u16>(rd.private_slots());
+    room.openPublicSlots = static_cast<u16>(rd.open_public_slots());
+    room.openPrivateSlots = static_cast<u16>(rd.open_private_slots());
+    room.maxSlot = static_cast<u16>(rd.max_slot());
+    room.serverId = static_cast<OrbisNpMatching2ServerId>(rd.server_id());
+    room.worldId = rd.world_id();
+    room.lobbyId = rd.lobby_id();
+    room.roomId = rd.room_id();
+    room.passwdSlotMask = rd.passwd_slot_mask();
+    room.joinedSlotMask = rd.joined_slot_mask();
+    room.flags = rd.flags();
+    return room;
+}
+
+// Fire the toolkit callback for a CreateJoinRoom / JoinRoom reply. Both carry the same
+// CreateJoinRoomResponse details (room + member list); only the event differs.
+static void DispatchCreateJoinResponse(const PendingRoomRequest& pending,
+                                       OrbisNpMatching2Event event,
+                                       const shadnet::CreateJoinRoomResponse& details) {
+    // Resolve the local user behind this context so the "me" member carries our real
+    // online ID / account ID (the server only echoes npid strings for members).
+    s32 user_id = -1;
+    {
+        std::scoped_lock lk{g_contexts_mutex};
+        if (auto it = g_contexts.find(pending.ctxId); it != g_contexts.end()) {
+            user_id = it->second.user_id;
+        }
+    }
+    const u32 me_member_id = details.me_member_id();
+
+    std::scoped_lock lk{g_responses_mutex};
+    g_responses.emplace_back([pending, event, details, user_id, me_member_id]() {
+        // Build the room and the member list on this (callback) thread's stack so their
+        // addresses stay valid for the synchronous callback.
+        OrbisNpMatching2RoomDataInternal room = BuildRoomDataInternal(details.room_data());
+
+        std::vector<OrbisNpMatching2RoomMemberDataInternalA> members;
+        members.reserve(details.members_size());
+        for (const auto& m : details.members()) {
+            OrbisNpMatching2RoomMemberDataInternalA mem{};
+            mem.user.platform = Libraries::Np::OrbisNpPlatformType::PS4;
+            mem.memberId = static_cast<OrbisNpMatching2RoomMemberId>(m.member_id());
+            mem.teamId = static_cast<OrbisNpMatching2TeamId>(m.team_id());
+            mem.natType = 1;
+            if (m.member_id() == me_member_id && user_id >= 0) {
+                auto& np = Libraries::Np::NpHandler::GetInstance();
+                mem.onlineId = np.GetOnlineId(user_id);
+                mem.user.accountId = np.GetAccountId(user_id);
+            } else {
+                mem.onlineId = MakeOnlineId(m.npid());
+                mem.user.accountId = 0;
+            }
+            members.push_back(mem);
+        }
+        // Link the singly-linked list (vector storage is stable for the call's duration).
+        for (size_t i = 0; i + 1 < members.size(); ++i) {
+            members[i].next = &members[i + 1];
+        }
+
+        OrbisNpMatching2RoomMemberDataInternalA* me = nullptr;
+        OrbisNpMatching2RoomMemberDataInternalA* owner = nullptr;
+        for (auto& mem : members) {
+            if (mem.memberId == details.me_member_id()) {
+                me = &mem;
+            }
+            if (mem.memberId == details.owner_member_id()) {
+                owner = &mem;
+            }
+        }
+        OrbisNpMatching2RoomMemberDataInternalA* head = members.empty() ? nullptr : &members[0];
+
+        OrbisNpMatching2CreateJoinRoomResponseA resp{
+            &room, {head, members.size(), me ? me : head, owner ? owner : head}};
+        pending.callback(pending.ctxId, pending.requestId, event, 0, &resp, pending.arg);
+    });
+}
+
 // Called (from np_handler's reader thread) when a room command reply arrives from the
 // shadNet server. Looks up the pending request and queues the toolkit callback so it
 // fires on the NP-callback thread via ProcessEvents.
@@ -460,95 +631,104 @@ void HandleRoomReply(u16 cmd, u64 pkt_id, u8 error, const std::vector<u8>& body)
         g_pending_rooms.erase(it);
     }
 
-    if (cmd != static_cast<u16>(ShadNet::CommandType::CreateRoom)) {
+    // Map the server command to the request-event the toolkit is waiting on.
+    OrbisNpMatching2Event event;
+    switch (static_cast<ShadNet::CommandType>(cmd)) {
+    case ShadNet::CommandType::CreateRoom:
+        event = ORBIS_NP_MATCHING2_REQUEST_EVENT_CREATE_JOIN_ROOM_A;
+        break;
+    case ShadNet::CommandType::JoinRoom:
+        event = ORBIS_NP_MATCHING2_REQUEST_EVENT_JOIN_ROOM_A;
+        break;
+    case ShadNet::CommandType::GetRoomList:
+        event = ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM_A;
+        break;
+    default:
         LOG_WARNING(Lib_NpMatching2, "HandleRoomReply: unhandled cmd={}", cmd);
         return;
     }
 
     // On a server error, notify the toolkit with a failure code and no data.
     if (error != static_cast<u8>(ShadNet::ErrorType::NoError)) {
-        LOG_WARNING(Lib_NpMatching2, "CreateJoinRoom: server error={} reqId={}", error,
+        LOG_WARNING(Lib_NpMatching2, "HandleRoomReply: server error={} cmd={} reqId={}", error, cmd,
                     pending.requestId);
         std::scoped_lock lk{g_responses_mutex};
-        g_responses.emplace_back([pending]() {
-            pending.callback(pending.ctxId, pending.requestId,
-                             ORBIS_NP_MATCHING2_REQUEST_EVENT_CREATE_JOIN_ROOM_A,
+        g_responses.emplace_back([pending, event]() {
+            pending.callback(pending.ctxId, pending.requestId, event,
                              ORBIS_NP_MATCHING2_ERROR_INVALID_ARGUMENT, nullptr, pending.arg);
         });
         return;
     }
 
-    // body = [u32-LE size][CreateRoomReply proto]
-    if (body.size() < 4) {
-        LOG_WARNING(Lib_NpMatching2, "CreateJoinRoom: short reply body ({} bytes)", body.size());
-        return;
-    }
-    const u32 sz = u32(body[0]) | (u32(body[1]) << 8) | (u32(body[2]) << 16) | (u32(body[3]) << 24);
-    shadnet::CreateRoomReply rep;
-    if (body.size() < 4 + static_cast<size_t>(sz) || !rep.ParseFromArray(body.data() + 4, sz)) {
-        LOG_WARNING(Lib_NpMatching2, "CreateJoinRoom: failed to parse CreateRoomReply");
+    const u8* proto = nullptr;
+    u32 sz = 0;
+    if (!ExtractReplyProto(body, &proto, &sz)) {
+        LOG_WARNING(Lib_NpMatching2, "HandleRoomReply: short reply body ({} bytes) cmd={}",
+                    body.size(), cmd);
         return;
     }
 
-    LOG_INFO(Lib_NpMatching2,
-             "CreateJoinRoom reply: roomId={} memberId={} maxSlots={} curMembers={}", rep.room_id(),
-             rep.member_id(), rep.max_slots(), rep.cur_members());
-
-    const u64 room_id = rep.room_id();
-    const u32 server_id = rep.server_id();
-    const u32 world_id = rep.world_id();
-    const u32 lobby_id = rep.lobby_id();
-    const u32 member_id = rep.member_id();
-    const u16 max_slots = static_cast<u16>(rep.max_slots());
-    const u16 cur_members = static_cast<u16>(rep.cur_members());
-    const u32 flags = rep.flags();
-
-    // Resolve the owning user so the member carries the correct online ID.
-    s32 user_id = -1;
-    {
-        std::scoped_lock lk{g_contexts_mutex};
-        if (auto it = g_contexts.find(pending.ctxId); it != g_contexts.end()) {
-            user_id = it->second.user_id;
+    if (event == ORBIS_NP_MATCHING2_REQUEST_EVENT_CREATE_JOIN_ROOM_A) {
+        shadnet::CreateRoomReply rep;
+        if (!rep.ParseFromArray(proto, sz)) {
+            LOG_WARNING(Lib_NpMatching2, "HandleRoomReply: failed to parse CreateRoomReply");
+            return;
         }
+        LOG_INFO(Lib_NpMatching2,
+                 "CreateJoinRoom reply: roomId={} memberId={} maxSlots={} curMembers={}",
+                 rep.room_id(), rep.member_id(), rep.max_slots(), rep.cur_members());
+        DispatchCreateJoinResponse(pending, event, rep.details());
+    } else if (event == ORBIS_NP_MATCHING2_REQUEST_EVENT_JOIN_ROOM_A) {
+        shadnet::JoinRoomReply rep;
+        if (!rep.ParseFromArray(proto, sz)) {
+            LOG_WARNING(Lib_NpMatching2, "HandleRoomReply: failed to parse JoinRoomReply");
+            return;
+        }
+        LOG_INFO(Lib_NpMatching2, "JoinRoom reply: roomId={} memberId={} maxSlots={} curMembers={}",
+                 rep.room_id(), rep.member_id(), rep.max_slots(), rep.cur_members());
+        DispatchCreateJoinResponse(pending, event, rep.details());
+    } else { // SEARCH_ROOM_A (GetRoomList)
+        shadnet::GetRoomListReply rep;
+        if (!rep.ParseFromArray(proto, sz)) {
+            LOG_WARNING(Lib_NpMatching2, "HandleRoomReply: failed to parse GetRoomListReply");
+            return;
+        }
+        LOG_INFO(Lib_NpMatching2, "SearchRoom reply: {} room(s)", rep.rooms_size());
+        std::scoped_lock lk{g_responses_mutex};
+        g_responses.emplace_back([pending, rep]() {
+            std::vector<OrbisNpMatching2RoomDataExternalA> rooms;
+            rooms.reserve(rep.rooms_size());
+            for (const auto& r : rep.rooms()) {
+                OrbisNpMatching2RoomDataExternalA room{};
+                room.maxSlot = static_cast<u16>(r.max_slot());
+                room.curMemberNum = static_cast<u16>(r.cur_members());
+                room.flagAttr = r.flags();
+                room.serverId = static_cast<OrbisNpMatching2ServerId>(r.server_id());
+                room.worldId = r.world_id();
+                room.lobbyId = r.lobby_id();
+                room.roomId = r.room_id();
+                room.passwordSlotMask = r.passwd_slot_mask();
+                room.joinedSlotMask = r.joined_slot_mask();
+                room.publicSlotNum = static_cast<u16>(r.public_slots());
+                room.privateSlotNum = static_cast<u16>(r.private_slots());
+                room.openPublicSlotNum = static_cast<u16>(r.open_public_slots());
+                room.openPrivateSlotNum = static_cast<u16>(r.open_private_slots());
+                room.owner.platform = Libraries::Np::OrbisNpPlatformType::PS4;
+                room.ownerOnlineId = MakeOnlineId(r.owner_npid());
+                rooms.push_back(room);
+            }
+            for (size_t i = 0; i + 1 < rooms.size(); ++i) {
+                rooms[i].next = &rooms[i + 1];
+            }
+
+            const u32 count = static_cast<u32>(rooms.size());
+            OrbisNpMatching2SearchRoomResponseA resp{};
+            resp.range = {0, count, count, {}};
+            resp.roomDataExternal = rooms.empty() ? nullptr : &rooms[0];
+            pending.callback(pending.ctxId, pending.requestId,
+                             ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM_A, 0, &resp, pending.arg);
+        });
     }
-
-    // Build the room/member structs on the callback thread's stack so their addresses stay
-    // valid for the synchronous callback call (mirrors the previous local-fake path).
-    std::scoped_lock lk{g_responses_mutex};
-    g_responses.emplace_back([=]() {
-        Libraries::Np::OrbisNpOnlineId onlineId{};
-        if (user_id >= 0) {
-            onlineId = Libraries::Np::NpHandler::GetInstance().GetOnlineId(user_id);
-        }
-
-        OrbisNpMatching2RoomMemberDataInternalA me{
-            nullptr,
-            0,
-            {0xace104e, Libraries::Np::OrbisNpPlatformType::PS4},
-            onlineId,
-            {0, 0, 0, 0},
-            static_cast<OrbisNpMatching2RoomMemberId>(member_id),
-            0,
-            1,
-            0,
-            nullptr,
-            nullptr,
-            0};
-        OrbisNpMatching2RoomDataInternal room{};
-        room.publicSlots = max_slots;
-        room.openPublicSlots = static_cast<u16>(max_slots > cur_members ? max_slots - cur_members
-                                                                        : 0);
-        room.maxSlot = max_slots;
-        room.serverId = static_cast<OrbisNpMatching2ServerId>(server_id);
-        room.worldId = world_id;
-        room.lobbyId = lobby_id;
-        room.roomId = room_id;
-        room.flags = flags;
-
-        OrbisNpMatching2CreateJoinRoomResponseA resp{&room, {&me, 1, &me, &me}};
-        pending.callback(pending.ctxId, pending.requestId,
-                         ORBIS_NP_MATCHING2_REQUEST_EVENT_CREATE_JOIN_ROOM_A, 0, &resp, pending.arg);
-    });
 }
 
 void ProcessEvents() {
@@ -699,11 +879,6 @@ int PS4_SYSV_ABI sceNpMatching2GetWorldInfoList(OrbisNpMatching2ContextId ctxId,
     return ORBIS_OK;
 }
 
-struct OrbisNpMatching2PresenceOptionData {
-    u8 data[16];
-    u64 len;
-};
-
 struct OrbisNpMatching2LeaveRoomRequest {
     OrbisNpMatching2RoomId roomId;
     OrbisNpMatching2PresenceOptionData optData;
@@ -759,18 +934,6 @@ struct OrbisNpMatching2SearchRoomRequest {
     u64 attrs;
 };
 
-struct OrbisNpMatching2Range {
-    u32 start;
-    u32 total;
-    u32 results;
-    u8 pad[4];
-};
-
-struct OrbisNpMatching2SearchRoomResponseA {
-    OrbisNpMatching2Range range;
-    void* roomDataExt;
-};
-
 int PS4_SYSV_ABI sceNpMatching2SearchRoom(OrbisNpMatching2ContextId ctxId,
                                           OrbisNpMatching2SearchRoomRequest* request,
                                           OrbisNpMatching2RequestOptParam* requestOpt,
@@ -787,17 +950,67 @@ int PS4_SYSV_ABI sceNpMatching2SearchRoom(OrbisNpMatching2ContextId ctxId,
     static OrbisNpMatching2RequestId id = 1;
     *requestId = id++;
 
-    if (auto optParam = GetOptParam(requestOpt); optParam) {
-        LOG_DEBUG(Lib_NpMatching2, "optParam.timeout = {}, optParam.appId = {}", optParam->timeout,
-                  optParam->appId);
-        std::scoped_lock lk{g_responses_mutex};
-        auto reqIdCopy = *requestId;
-        auto requestCopy = *request;
-        g_responses.emplace_back([=]() {
-            OrbisNpMatching2SearchRoomResponseA resp{{0, 0, 0, {}}, nullptr};
-            optParam->callback(ctxId, reqIdCopy, ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM_A, 0,
-                               &resp, optParam->arg);
-        });
+    auto optParam = GetOptParam(requestOpt);
+
+    // Ask the shadNet server for the live room list (CmdGetRoomList ignores any body).
+    // HandleRoomReply(cmd=GetRoomList) turns the reply into a SearchRoom response.
+    const u64 pkt_id = SubmitRoomRequest(ctxId, ShadNet::CommandType::GetRoomList, std::string{});
+    LOG_INFO(Lib_NpMatching2, "SearchRoom: sent GetRoomList to shadNet, ctxId={} reqId={} pkt_id={}",
+             ctxId, *requestId, pkt_id);
+
+    if (optParam) {
+        if (pkt_id != 0) {
+            StashRoomRequest(pkt_id, {ctxId, *requestId, optParam->callback, optParam->arg});
+        } else {
+            // Offline / no connected client: return an empty result so the toolkit doesn't hang.
+            std::scoped_lock lk{g_responses_mutex};
+            auto reqIdCopy = *requestId;
+            g_responses.emplace_back([=]() {
+                OrbisNpMatching2SearchRoomResponseA resp{{0, 0, 0, {}}, nullptr};
+                optParam->callback(ctxId, reqIdCopy,
+                                   ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM_A, 0, &resp,
+                                   optParam->arg);
+            });
+        }
+    }
+
+    return ORBIS_OK;
+}
+
+int PS4_SYSV_ABI sceNpMatching2JoinRoomA(OrbisNpMatching2ContextId ctxId,
+                                         OrbisNpMatching2JoinRoomRequestA* request,
+                                         OrbisNpMatching2RequestOptParam* requestOpt,
+                                         OrbisNpMatching2RequestId* requestId) {
+    LOG_DEBUG(Lib_NpMatching2, "called, ctxId = {}, requestOpt = {}", ctxId, fmt::ptr(requestOpt));
+
+    if (!g_initialized) {
+        return ORBIS_NP_MATCHING2_ERROR_NOT_INITIALIZED;
+    }
+    if (!request || !requestId) {
+        return ORBIS_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
+    }
+
+    static OrbisNpMatching2RequestId id = 300;
+    *requestId = id++;
+
+    auto optParam = GetOptParam(requestOpt);
+
+    shadnet::JoinRoomRequest pb;
+    pb.set_room_id(request->roomId);
+    pb.set_req_id(*requestId);
+    pb.set_team_id(request->teamId);
+    pb.set_join_flags(request->flagAttr);
+    pb.set_blocked_user_count(static_cast<u32>(request->blockedUserNum));
+    pb.set_room_password_present(request->roomPassword != nullptr);
+    pb.set_join_group_label_present(request->joinRoomGroupLabel != nullptr);
+
+    const u64 pkt_id =
+        SubmitRoomRequest(ctxId, ShadNet::CommandType::JoinRoom, pb.SerializeAsString());
+    LOG_INFO(Lib_NpMatching2, "JoinRoom: sent to shadNet, ctxId={} roomId={} reqId={} pkt_id={}",
+             ctxId, request->roomId, *requestId, pkt_id);
+
+    if (optParam) {
+        StashRoomRequest(pkt_id, {ctxId, *requestId, optParam->callback, optParam->arg});
     }
 
     return ORBIS_OK;
@@ -940,6 +1153,8 @@ void RegisterLib(Core::Loader::SymbolsResolver* sym) {
                  sceNpMatching2CreateContextA);
     LIB_FUNCTION("V6KSpKv9XJE", "libSceNpMatching2", 1, "libSceNpMatching2",
                  sceNpMatching2CreateJoinRoomA);
+    LIB_FUNCTION("gQ6cUriNpgs", "libSceNpMatching2", 1, "libSceNpMatching2",
+                 sceNpMatching2JoinRoomA);
     LIB_FUNCTION("fQQfP87I7hs", "libSceNpMatching2", 1, "libSceNpMatching2",
                  sceNpMatching2RegisterContextCallback);
     LIB_FUNCTION("4Nj7u5B5yCA", "libSceNpMatching2", 1, "libSceNpMatching2",

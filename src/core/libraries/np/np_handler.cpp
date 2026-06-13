@@ -35,8 +35,17 @@ void NpHandler::Initialize() {
         return;
     }
 
-    // Parse server address from GeneralSettings
-    const std::string server_str = EmulatorSettings.GetShadNetServer();
+    // Parse server address from GeneralSettings.
+    // Trim surrounding whitespace/CR — config files edited on Windows often carry a trailing
+    // '\r', and a stray space would otherwise become part of the hostname.
+    std::string server_str = EmulatorSettings.GetShadNetServer();
+    const auto first = server_str.find_first_not_of(" \t\r\n");
+    const auto last = server_str.find_last_not_of(" \t\r\n");
+    if (first == std::string::npos)
+        server_str.clear();
+    else
+        server_str = server_str.substr(first, last - first + 1);
+
     std::string host = server_str;
     u16 port = 31313; // default port
     const auto colon = server_str.rfind(':');
@@ -47,6 +56,18 @@ void NpHandler::Initialize() {
         } catch (...) {
         }
     }
+
+    // An empty host must never reach getaddrinfo(): on Windows an empty node string resolves to
+    // the local machine's own addresses (e.g. 192.168.x.x), so the client would silently try to
+    // connect to itself instead of the configured server. Bail with a clear message instead.
+    if (host.empty()) {
+        LOG_ERROR(NpHandler,
+                  "shadNet enabled but no server address configured (General.shadnet_server is "
+                  "empty); set it in config.json (e.g. \"127.0.0.1:31313\"). Staying offline.");
+        return;
+    }
+
+    LOG_INFO(NpHandler, "shadNet server configured as {}:{}", host, port);
 
     const auto logged_in = UserManagement.GetLoggedInUsers(); // get all login users
     int connected_count = 0;
