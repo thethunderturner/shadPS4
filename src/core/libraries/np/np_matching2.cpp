@@ -715,6 +715,11 @@ void HandleRoomReply(u16 cmd, u64 pkt_id, u8 error, const std::vector<u8>& body)
                 room.openPrivateSlotNum = static_cast<u16>(r.open_private_slots());
                 room.owner.platform = Libraries::Np::OrbisNpPlatformType::PS4;
                 room.ownerOnlineId = MakeOnlineId(r.owner_npid());
+                LOG_INFO(Lib_NpMatching2,
+                         "SearchRoom result: roomId={} serverId={} worldId={} lobbyId={} maxSlot={} "
+                         "curMembers={} flags={:#x} owner='{}'",
+                         room.roomId, room.serverId, room.worldId, room.lobbyId, room.maxSlot,
+                         room.curMemberNum, room.flagAttr, room.ownerOnlineId.data);
                 rooms.push_back(room);
             }
             for (size_t i = 0; i + 1 < rooms.size(); ++i) {
@@ -725,8 +730,11 @@ void HandleRoomReply(u16 cmd, u64 pkt_id, u8 error, const std::vector<u8>& body)
             OrbisNpMatching2SearchRoomResponseA resp{};
             resp.range = {0, count, count, {}};
             resp.roomDataExternal = rooms.empty() ? nullptr : &rooms[0];
+            LOG_INFO(Lib_NpMatching2, "SearchRoom: firing callback cb={} arg={} count={}",
+                     fmt::ptr(reinterpret_cast<void*>(pending.callback)), pending.arg, count);
             pending.callback(pending.ctxId, pending.requestId,
                              ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM_A, 0, &resp, pending.arg);
+            LOG_INFO(Lib_NpMatching2, "SearchRoom: callback returned");
         });
     }
 }
@@ -949,6 +957,13 @@ int PS4_SYSV_ABI sceNpMatching2SearchRoom(OrbisNpMatching2ContextId ctxId,
 
     static OrbisNpMatching2RequestId id = 1;
     *requestId = id++;
+
+    LOG_INFO(Lib_NpMatching2,
+             "SearchRoom req: option={:#x} worldId={} lobbyId={} range.start={} range.max={} "
+             "flagFilter={:#x} flagAttr={:#x} intFilters={} binFilters={} attrIds={}",
+             request->option, request->worldId, request->lobbyId, request->rangeFilter.start,
+             request->rangeFilter.max, request->flags1, request->flags2, request->intFilters,
+             request->binFilters, request->attrs);
 
     auto optParam = GetOptParam(requestOpt);
 
