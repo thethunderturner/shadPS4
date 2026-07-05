@@ -441,10 +441,28 @@ int PS4_SYSV_ABI sceNpMatching2SetUserInfo(OrbisNpMatching2ContextId ctxId,
     }
 
     StoreRequestCallback(ctx, requestOpt);
-    *requestId = AllocRequestId();
-    LOG_WARNING(Lib_NpMatching2, "not implemented");
+    const OrbisNpMatching2RequestId reqId = AllocRequestId();
+    *requestId = reqId;
+
+    // Storing user info on the matching server is not implemented, but the request must still
+    // complete so callers (e.g. the NpToolkit2 createRoom flow, which issues SetUserInfo as its
+    // final step) receive their request callback and stop waiting.
+    LOG_WARNING(Lib_NpMatching2, "not implemented, completing request locally");
+
+    PendingEvent ev{};
+    ev.type = PendingEvent::REQUEST_CB;
+    ev.ctx_id = ctxId;
+    ev.fire_at = std::chrono::steady_clock::now();
+    ev.req_id = reqId;
+    ev.req_event = ORBIS_NP_MATCHING2_REQUEST_EVENT_SET_USER_INFO;
+    ev.error_code = 0;
+    ev.request_cb = ctx->default_request_callback;
+    ev.request_cb_arg = ctx->default_request_callback_arg;
+    ev.request_data = nullptr;
+    ScheduleEvent(std::move(ev));
     return ORBIS_OK;
 }
+
 
 int PS4_SYSV_ABI sceNpMatching2SendRoomMessage(OrbisNpMatching2ContextId ctxId, void* request,
                                                OrbisNpMatching2RequestOptParam* requestOpt,
